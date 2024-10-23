@@ -4,3 +4,12 @@
 [submodule "artery-font-format"]
 	path = artery-font-format
 	url = https://github.com/Chlumsky/artery-font-format
+[submodule "dependencies/freetype"]
+	path = dependencies/freetype
+	url = https://github.com/freetype/freetype.git
+[submodule "dependencies/libpng"]
+	path = dependencies/libpng
+	url = https://github.com/pnggroup/libpng.git
+[submodule "dependencies/zlib"]
+	path = dependencies/zlib
+	url = https://github.com/madler/zlib.git
