@@ -2,14 +2,15 @@
 cmake_minimum_required(VERSION 3.15)
 include(cmake/version.cmake)
 
-option(MSDF_ATLAS_BUILD_STANDALONE "Build the msdf-atlas-gen standalone executable" ON)
-option(MSDF_ATLAS_USE_VCPKG "Use vcpkg package manager to link project dependencies" ON)
-option(MSDF_ATLAS_USE_SKIA "Build with the Skia library" ON)
-option(MSDF_ATLAS_NO_ARTERY_FONT "Disable Artery Font export and do not require its submodule" OFF)
+option(MSDF_ATLAS_BUILD_STANDALONE "Build the msdf-atlas-gen standalone executable" OFF)
+option(MSDF_ATLAS_USE_VCPKG "Use vcpkg package manager to link project dependencies" OFF)
+option(MSDF_ATLAS_USE_SKIA "Build with the Skia library" OFF)
 option(MSDF_ATLAS_MSDFGEN_EXTERNAL "Do not build the msdfgen submodule but find it as an external package" OFF)
 option(MSDF_ATLAS_INSTALL "Generate installation target" OFF)
 option(MSDF_ATLAS_DYNAMIC_RUNTIME "Link dynamic runtime library instead of static" OFF)
 option(BUILD_SHARED_LIBS "Generate dynamic library files instead of static" OFF)
+
+option(MSDF_BUILD_DEPENDENCIES "Build freetype, zlib and libpng from the provided source files" ON)
 
 if(NOT MSDF_ATLAS_MSDFGEN_EXTERNAL)
     set(MSDFGEN_DISABLE_SVG ON CACHE BOOL "Disable unused SVG functionality to minimize dependencies")
@@ -27,12 +28,6 @@ get_property(MULTI_CONFIG GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG)
 if(NOT MULTI_CONFIG AND NOT CMAKE_BUILD_TYPE)
     message(STATUS "CMAKE_BUILD_TYPE not set, defaulting to Release")
     set(CMAKE_BUILD_TYPE Release)
-endif()
-
-if(MSDF_ATLAS_DYNAMIC_RUNTIME)
-    set(MSDF_ATLAS_MSVC_RUNTIME "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL")
-else()
-    set(MSDF_ATLAS_MSVC_RUNTIME "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 endif()
 
 if(BUILD_SHARED_LIBS)
@@ -80,45 +75,74 @@ if(MSDF_ATLAS_MSDFGEN_EXTERNAL)
         find_package(msdfgen REQUIRED)
     endif()
 else()
+    if(MSDF_BUILD_DEPENDENCIES)
+        # So that find_package() works for these subdirectories
+        list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+
+        set(SKIP_INSTALL_ALL ON CACHE BOOL "" FORCE)
+
+        # zlib flags
+        set(ZLIB_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+        set(RENAME_ZCONF OFF CACHE BOOL "" FORCE)
+
+        add_subdirectory(dependencies/zlib)
+
+        # libpng flags
+        set(PNG_SHARED OFF CACHE BOOL "" FORCE)
+        set(PNG_TESTS OFF CACHE BOOL "" FORCE)
+        set(PNG_TOOLS OFF CACHE BOOL "" FORCE)
+        set(ld-version-script OFF CACHE BOOL "" FORCE)
+        
+        add_subdirectory(dependencies/libpng)
+
+        # FreeType flags
+        set(FT_REQUIRE_ZLIB ON CACHE BOOL "" FORCE)
+        set(FT_REQUIRE_PNG ON CACHE BOOL "" FORCE)
+        set(FT_DISABLE_BZIP2 ON CACHE BOOL "" FORCE)
+        set(FT_DISABLE_HARFBUZZ ON CACHE BOOL "" FORCE)
+        set(FT_DISABLE_BROTLI ON CACHE BOOL "" FORCE)
+
+        add_subdirectory(dependencies/freetype)
+    endif()
+
     add_subdirectory(msdfgen)
 endif()
-find_package(Threads REQUIRED)
-if(NOT MSDFGEN_DISABLE_PNG AND NOT TARGET PNG::PNG)
-    find_package(PNG REQUIRED)
-endif()
 
-file(GLOB_RECURSE MSDF_ATLAS_HEADERS RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "msdf-atlas-gen/*.h" "msdf-atlas-gen/*.hpp")
-file(GLOB_RECURSE MSDF_ATLAS_SOURCES RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "msdf-atlas-gen/*.cpp")
+find_package(Threads REQUIRED)
+
+file(GLOB_RECURSE MSDF_ATLAS_HEADERS RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "include/msdf/*.h" "include/msdf/*.hpp")
+file(GLOB_RECURSE MSDF_ATLAS_SOURCES RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "src/*.cpp")
 
 # msdf-atlas-gen library
-add_library(msdf-atlas-gen ${MSDF_ATLAS_HEADERS} ${MSDF_ATLAS_SOURCES})
+add_library(msdf-atlas-gen STATIC ${MSDF_ATLAS_SOURCES})
 add_library(msdf-atlas-gen::msdf-atlas-gen ALIAS msdf-atlas-gen)
 set_target_properties(msdf-atlas-gen PROPERTIES PUBLIC_HEADER "${MSDF_ATLAS_HEADERS}")
-set_property(TARGET msdf-atlas-gen PROPERTY MSVC_RUNTIME_LIBRARY "${MSDF_ATLAS_MSVC_RUNTIME}")
-target_compile_definitions(msdf-atlas-gen PUBLIC
-    MSDF_ATLAS_VERSION=${MSDF_ATLAS_VERSION}
-    MSDF_ATLAS_VERSION_MAJOR=${MSDF_ATLAS_VERSION_MAJOR}
-    MSDF_ATLAS_VERSION_MINOR=${MSDF_ATLAS_VERSION_MINOR}
-    MSDF_ATLAS_VERSION_REVISION=${MSDF_ATLAS_VERSION_REVISION}
-    MSDF_ATLAS_COPYRIGHT_YEAR=${MSDF_ATLAS_COPYRIGHT_YEAR}
-)
-target_include_directories(msdf-atlas-gen INTERFACE
-    $<INSTALL_INTERFACE:include>
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
-)
-if(MSDF_ATLAS_NO_ARTERY_FONT)
-    target_compile_definitions(msdf-atlas-gen PUBLIC MSDF_ATLAS_NO_ARTERY_FONT)
-else()
-    target_include_directories(msdf-atlas-gen PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/artery-font-format)
-endif()
-set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT msdf-atlas-gen)
 
-target_compile_features(msdf-atlas-gen PUBLIC cxx_std_11)
+target_compile_definitions(msdf-atlas-gen
+    INTERFACE
+        $<TARGET_PROPERTY:msdfgen::msdfgen,INTERFACE_COMPILE_DEFINITIONS>
+)
+target_include_directories(msdf-atlas-gen
+    PUBLIC
+        ${CMAKE_CURRENT_SOURCE_DIR}/include
+    INTERFACE
+        $<INSTALL_INTERFACE:include>
+        $<TARGET_PROPERTY:msdfgen::msdfgen,INTERFACE_INCLUDE_DIRECTORIES>
+    PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/include/msdf # So that internal includes don't brake
+)
+
+#set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT msdf-atlas-gen)
+
+target_compile_features(msdf-atlas-gen
+    PUBLIC
+        cxx_std_11
+    INTERFACE
+        $<TARGET_PROPERTY:msdfgen::msdfgen,INTERFACE_COMPILE_FEATURES>
+)
 target_link_libraries(msdf-atlas-gen PRIVATE Threads::Threads)
-if(NOT MSDFGEN_DISABLE_PNG)
-    target_link_libraries(msdf-atlas-gen PRIVATE PNG::PNG)
-endif()
-target_link_libraries(msdf-atlas-gen PUBLIC msdfgen::msdfgen)
+
+target_link_libraries(msdf-atlas-gen PRIVATE msdfgen::msdfgen freetype png_static zlibstatic)
 
 if(BUILD_SHARED_LIBS AND WIN32)
     target_compile_definitions(msdf-atlas-gen PRIVATE "MSDF_ATLAS_PUBLIC=__declspec(dllexport)")
@@ -129,14 +153,14 @@ endif()
 
 # msdf-atlas-gen standalone executable
 if(MSDF_ATLAS_BUILD_STANDALONE)
-    set(MSDF_ATLAS_STANDALONE_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/msdf-atlas-gen/main.cpp")
+    set(MSDF_ATLAS_STANDALONE_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/example/main.cpp")
     if(MSVC)
         set(MSDF_ATLAS_STANDALONE_SOURCES ${MSDF_ATLAS_STANDALONE_SOURCES} "${CMAKE_CURRENT_SOURCE_DIR}/msdf-atlas-gen.rc")
     endif()
     add_executable(msdf-atlas-gen-standalone ${MSDF_ATLAS_STANDALONE_SOURCES})
     target_compile_definitions(msdf-atlas-gen-standalone PUBLIC MSDF_ATLAS_STANDALONE)
     target_compile_definitions(msdf-atlas-gen-standalone PRIVATE MSDF_ATLAS_VERSION_UNDERLINE=${MSDF_ATLAS_VERSION_UNDERLINE})
-    set_property(TARGET msdf-atlas-gen-standalone PROPERTY MSVC_RUNTIME_LIBRARY "${MSDF_ATLAS_MSVC_RUNTIME}")
+
     set_target_properties(msdf-atlas-gen-standalone PROPERTIES
         OUTPUT_NAME msdf-atlas-gen
         ARCHIVE_OUTPUT_NAME msdf-atlas-gen-standalone
