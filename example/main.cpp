@@ -118,11 +118,7 @@ OUTPUT SPECIFICATION - one or more can be specified
       Writes the atlas's layout data, as well as other metrics into a structured JSON file.
   -csv <filename.csv>
       Writes the layout data of the glyphs into a simple CSV file.)"
-#ifndef MSDF_ATLAS_NO_ARTERY_FONT
-R"(
-  -arfont <filename.arfont>
-      Stores the atlas and its layout data as an Artery Font file. Supported formats: png, bin, binfloat.)"
-#endif
+
 R"(
   -shadronpreview <filename.shadron> <sample text>
       Generates a Shadron script that uses the generated atlas to draw a sample text as a preview.
@@ -348,23 +344,6 @@ static bool makeAtlas(const std::vector<GlyphGeometry> &glyphs, const std::vecto
         }
     }
 
-#ifndef MSDF_ATLAS_NO_ARTERY_FONT
-    if (config.arteryFontFilename) {
-        ArteryFontExportProperties arfontProps;
-        arfontProps.fontSize = config.emSize;
-        arfontProps.pxRange = config.pxRange;
-        arfontProps.imageType = config.imageType;
-        arfontProps.imageFormat = config.imageFormat;
-        arfontProps.yDirection = config.yDirection;
-        if (exportArteryFont<float>(fonts.data(), fonts.size(), bitmap, config.arteryFontFilename, arfontProps))
-            fputs("Artery Font file generated.\n", stderr);
-        else {
-            success = false;
-            fputs("Failed to generate Artery Font file.\n", stderr);
-        }
-    }
-#endif
-
     return success;
 }
 
@@ -540,12 +519,6 @@ int main(int argc, const char *const *argv) {
             fontInput.fontName = nullptr;
             continue;
         }
-    #ifndef MSDF_ATLAS_NO_ARTERY_FONT
-        ARG_CASE("-arfont", 1) {
-            config.arteryFontFilename = argv[argPos++];
-            continue;
-        }
-    #endif
         ARG_CASE("-imageout", 1) {
             config.imageFilename = argv[argPos++];
             continue;
@@ -1028,17 +1001,7 @@ int main(int argc, const char *const *argv) {
     }
     if (config.imageType == ImageType::MTSDF && config.imageFormat == ImageFormat::BMP)
         ABORT("Atlas type not compatible with image format. MTSDF requires a format with alpha channel.");
-#ifndef MSDF_ATLAS_NO_ARTERY_FONT
-    if (config.arteryFontFilename && !(config.imageFormat == ImageFormat::PNG || config.imageFormat == ImageFormat::BINARY || config.imageFormat == ImageFormat::BINARY_FLOAT)) {
-        config.arteryFontFilename = nullptr;
-        result = 1;
-        fputs("Error: Unable to create an Artery Font file with the specified image format!\n", stderr);
-        // Recheck whether there is anything else to do
-        if (!(config.arteryFontFilename || config.imageFilename || config.jsonFilename || config.csvFilename || config.shadronPreviewFilename))
-            return result;
-        layoutOnly = !(config.arteryFontFilename || config.imageFilename);
-    }
-#endif
+
     if (imageExtension != ImageFormat::UNSPECIFIED) {
         // Warn if image format mismatches -imageout extension
         bool mismatch = false;
