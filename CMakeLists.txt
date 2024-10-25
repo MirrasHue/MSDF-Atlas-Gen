@@ -118,10 +118,6 @@ add_library(msdf-atlas-gen STATIC ${MSDF_ATLAS_SOURCES})
 add_library(msdf-atlas-gen::msdf-atlas-gen ALIAS msdf-atlas-gen)
 set_target_properties(msdf-atlas-gen PROPERTIES PUBLIC_HEADER "${MSDF_ATLAS_HEADERS}")
 
-target_compile_definitions(msdf-atlas-gen
-    INTERFACE
-        $<TARGET_PROPERTY:msdfgen::msdfgen,INTERFACE_COMPILE_DEFINITIONS>
-)
 target_include_directories(msdf-atlas-gen
     PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}/include
