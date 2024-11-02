@@ -213,6 +213,10 @@ const msdfgen::Shape &GlyphGeometry::getShape() const {
     return shape;
 }
 
+msdfgen::Shape &GlyphGeometry::getShape() {
+    return shape;
+}
+
 const msdfgen::Shape::Bounds &GlyphGeometry::getShapeBounds() const {
     return bounds;
 }

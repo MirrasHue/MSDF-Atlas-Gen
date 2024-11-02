@@ -58,6 +58,8 @@ public:
     GlyphIdentifierType getPreferredIdentifierType() const;
     /// Returns the list of all glyphs
     GlyphRange getGlyphs() const;
+    /// Returns a reference to the vector that stores the glyphs
+    std::vector<GlyphGeometry>& getGlyphStorage();
     /// Finds a glyph by glyph index or Unicode codepoint, returns null if not found
     const GlyphGeometry *getGlyph(msdfgen::GlyphIndex index) const;
     const GlyphGeometry *getGlyph(unicode_t codepoint) const;

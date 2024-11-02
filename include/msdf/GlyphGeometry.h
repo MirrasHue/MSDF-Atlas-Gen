@@ -52,6 +52,8 @@ public:
     double getGeometryScale() const;
     /// Returns the glyph's shape
     const msdfgen::Shape &getShape() const;
+    /// Returns the glyph's shape (non const version)
+    msdfgen::Shape &getShape();
     /// Returns the glyph's shape's raw bounds
     const msdfgen::Shape::Bounds &getShapeBounds() const;
     /// Returns the glyph's advance
