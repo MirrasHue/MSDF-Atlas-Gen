@@ -82,8 +82,10 @@ else()
         set(SKIP_INSTALL_ALL ON CACHE BOOL "" FORCE)
 
         # zlib flags
-        set(ZLIB_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
-        set(RENAME_ZCONF OFF CACHE BOOL "" FORCE)
+        set(ZLIB_BUILD_TESTING OFF CACHE BOOL "" FORCE)
+        set(ZLIB_BUILD_SHARED OFF CACHE BOOL "" FORCE)
+        set(ZLIB_INSTALL OFF CACHE BOOL "" FORCE)
+        set(ZLIB_INSTALL_COMPAT_DLL OFF CACHE BOOL "" FORCE)
 
         add_subdirectory(dependencies/zlib)
 
