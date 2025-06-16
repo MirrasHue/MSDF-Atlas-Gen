@@ -91,6 +91,7 @@ else()
 
         # libpng flags
         set(PNG_SHARED OFF CACHE BOOL "" FORCE)
+        set(PNG_FRAMEWORK OFF CACHE BOOL "" FORCE)
         set(PNG_TESTS OFF CACHE BOOL "" FORCE)
         set(PNG_TOOLS OFF CACHE BOOL "" FORCE)
         set(ld-version-script OFF CACHE BOOL "" FORCE)
